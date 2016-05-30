@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>城市选择器</title>
+    <script type="text/javascript">
+        if(/Android (\d+\.\d+)/.test(navigator.userAgent)){
+            var version = parseFloat(RegExp.$1);
+            if(version>2.3){
+                var phoneScale = parseInt(window.screen.width)/375;
+                document.write('<meta name="viewport" content="width=375, minimum-scale = '+ phoneScale +', maximum-scale = '+ phoneScale +', target-densitydpi=device-dpi">');
+            }else{
+                document.write('<meta name="viewport" content="width=375, target-densitydpi=device-dpi">');
+            }
+        }else{
+            document.write('<meta name="viewport" content="width=375, user-scalable=no, target-densitydpi=device-dpi">');
+        }
+    </script>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/zepto.min.js"></script>
+    <script src="js/city.min.js"></script>
+    <script>
+        $(function () {
+            var cityPicker = {
+                cityData : citysArr,    //取自city.min.js
+                selectedDom:'.selectCity',
+                listsDom:'.lists',
+                listDom:'.list',
+                currArea:0, //0:省级,1:区级,2:县级
+                result:'',
+                resultArr:[],
+
+                //初使化
+                init:function () {
+                    this.showProvince(this.cityData.citylist);
+                },
+
+                //绑定事件
+                bindClick:function () {
+                    var self = this;
+                    var size = $(this.listDom).size();
+                    $(this.listDom).off("click").on("click", function () {
+                        var index = parseInt($(this).data("index"));
+                        if(self.currArea == 0){ //点击省级
+                            self.result += self.cityData.citylist[index]['p'];
+                            if(self.cityData.citylist[index]['c']){ //含有区级的省
+                                self.currArea = 1;
+                                self.showCity(self.cityData.citylist[index]['c']);
+                                self.resultArr.push(index);
+                            }else{
+                                alert('到底了,result='+self.result);
+                                self.exitPlugin();
+                            }
+
+                        }else if(self.currArea == 1){   //点击区级
+                            var citys = self.cityData.citylist[self.resultArr[0]]['c'];
+                            self.result += ','+citys[index]['n'];
+                            if(citys[index]['a']){//含有县级的区
+                                self.currArea = 2;
+                                self.showCountry(citys[index]['a']);
+                                self.resultArr.push(index);
+                            }else{
+                                alert('到底了,result='+self.result);
+                                self.exitPlugin();
+                            }
+
+                        }else if(self.currArea == 2){   //点击县级
+                            var countries = self.cityData.citylist[self.resultArr[0]]['c'][self.resultArr[1]]['a'];
+                            if(self.resultArr.length == 3){
+                                self.resultArr.pop();
+                                self.result = self.result.slice(0,self.result.lastIndexOf(','))
+                            }
+                            self.result += ','+countries[index]['s'];
+                            self.resultArr.push(index);
+                            alert('到底了,result='+self.result);
+                            self.exitPlugin();
+                        }
+                        self.showResult();
+                    })
+                },
+
+                //重载
+                reload:function () {
+                    $(this.listsDom).html('');
+                },
+
+                //退出插件
+                exitPlugin:function () {
+
+                },
+
+                //显示结果
+                showResult:function () {
+                    $(this.selectedDom).html('');
+                    if(this.result == '') return;
+                    var str = this.result;
+                    console.log('str='+str);
+                    var arr = str.split(',');
+                    var tmp = '';
+                    console.log('arr',arr.length);
+                    for(var i = 0; i < arr.length; i++){
+                        tmp += '<span data-key="'+i+'">'+arr[i]+'</span>';
+                    }
+                    $(this.selectedDom).html(tmp);
+                    this.bindSelected();
+                },
+
+                bindSelected:function () {
+                    var self = this;
+                    $(this.selectedDom).find("span").off("click").on("click", function () {
+                        var key = $(this).data("key");
+                        if(key == 0){   //到省级
+                            self.showProvince(self.cityData.citylist);
+                            self.result = '';
+                            self.resultArr = [];
+                            self.currArea = 0;
+                        }else if(key == 1){ //到区级
+                            self.showCity(self.cityData.citylist[self.resultArr[0]]['c']);
+                            var tmp = self.resultArr.shift();
+                            self.resultArr = [];
+                            self.resultArr.push(tmp);
+                            self.result = self.result.split(",")[0];
+                            self.currArea = 1;
+                        }
+                        self.showResult();
+                    })
+                },
+
+                //显示省份
+                showProvince:function (arr) {
+                    var str = '';
+                    for(var i =0,len=arr.length;i<len; i++){
+                        str += '<li class="list" data-index="'+i+'"><span>'+arr[i]['p']+'</span> </li>'
+                    }
+                    $(this.listsDom).html(str);
+                    this.bindClick();
+                },
+
+                //显示区级
+                showCity:function (arr) {
+                    this.reload();
+                    var str = '';
+                    for(var i = 0;i<arr.length; i++){
+                        str += '<li class="list" data-index="'+i+'"><span>'+arr[i]['n']+'</span> </li>'
+                    }
+                    $(this.listsDom).html(str);
+                    this.bindClick();
+                },
+
+                //显示县级
+                showCountry:function (arr) {
+                    this.reload();
+                    var str = '';
+                    for(var i = 0;i<arr.length; i++){
+                        str += '<li class="list" data-index="'+i+'"><span>'+arr[i]['s']+'</span> </li>'
+                    }
+                    $(this.listsDom).html(str);
+                    this.bindClick();
+                }
+            };
+
+            cityPicker.init();
+        })
+    </script>
+</head>
+<body>
+    <section class="wrapper">
+        <section class="citys">
+            <div class="selected">
+                <div class="tip fl"><span>请点击选择:</span></div>
+                <div class="selectCity fl"></div>
+                <div class="cb"></div>
+            </div>
+            <ul class="lists">
+            </ul>
+        </section>
+    </section>
+</body>
+</html>
